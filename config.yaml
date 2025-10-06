@@ -1,0 +1,76 @@
+#-------------------------------------------------------------------------------------------
+#  Copyright (c) 2016-2025.  SupportVectors AI Lab
+#
+#  This code is part of the training material, and therefore part of the intellectual property.
+#  It may not be reused or shared without the explicit, written permission of SupportVectors.
+#
+#  Use is limited to the duration and purpose of the training at SupportVectors.
+#
+#  Author: SupportVectors AI Training
+#-------------------------------------------------------------------------------------------
+
+cohort: Spring 2025
+
+# Person of Interest Application Configuration
+app:
+  name: "person-of-interest"
+  version: "0.1.0"
+  description: "Face image processing and semantic search application"
+
+# Dataset Configuration
+dataset:
+  #input_path: "/home/biju/supportvectors/Person-Of-Interest/dataset/img_align_celeba"
+  input_path: "/home/biju/celeba-dataset/img_align_celeba"
+  processed_path: "/home/biju/supportvectors/Person-Of-Interest/dataset/processed_faces"
+  supported_formats: ["jpg", "jpeg", "png"]
+  batch_size: 32
+
+# Face Detection Configuration
+face_detection:
+  model: "mediapipe"  # Using MediaPipe instead of RetinaFace for better Python 3.12+ compatibility
+  confidence_threshold: 0.8
+  min_face_size: 1000
+  max_face_size: 50000
+
+# Image Encoding Configuration (using rag_to_riches models)
+image_encoding:
+  model: "siglip"  # Options: siglip, facenet, arcface
+  model_name: "ViT-B-16-SigLIP2"  # SigLIP model from rag_to_riches
+  pretrained: "webli"  # Pretrained weights
+  input_size: [224, 224]  # [height, width] - SigLIP standard size
+  embedding_dim: 768  # SigLIP vector size
+  batch_size: 16
+  device: "auto"  # auto, cpu, cuda
+
+# Text Encoding Configuration (using rag_to_riches models)
+text_encoding:
+  model: "sentence-transformers"  # Text embedder from rag_to_riches
+  model_name: "all-MiniLM-L6-v2"  # Same as rag_to_riches
+  embedding_dim: 384  # Sentence transformers vector size
+  batch_size: 32
+
+# Vector Database Configuration (using Qdrant like rag_to_riches)
+vector_db:
+  type: "qdrant"
+  path: "/home/biju/supportvectors/Person-Of-Interest/data/vector_db"
+  face_embeddings:
+    collection_name: "face_embeddings"
+    vector_size: 768  # SigLIP vector size
+    distance: "cosine"
+  text_embeddings:
+    collection_name: "text_embeddings"
+    vector_size: 384  # Sentence transformers vector size
+    distance: "cosine"
+
+# Search Configuration
+search:
+  similarity_threshold: 0.6
+  max_results: 20
+  include_metadata: true
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/poi.log"
+
