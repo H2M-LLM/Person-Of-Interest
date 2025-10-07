@@ -1,2 +1,2 @@
 # Person-Of-Interest
-Seek out a favorite celebrity from the database with description
+Seek out a favorite celebrity given a description from the database
