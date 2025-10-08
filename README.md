@@ -1,19 +1,19 @@
 # Person of Interest - Face Image Processing and Semantic Search
 
-A comprehensive application for face image processing and semantic search using RetinaFace, deep learning models, and vector databases. This application processes face images from the CelebA dataset, extracts face embeddings, and enables semantic search through a Qdrant vector database.
+A comprehensive application for face image processing and semantic search using MediaPipe, CLIP multimodal encoder, and vector databases. This application processes face images from the CelebA dataset, extracts face embeddings, and enables text-to-image semantic search through a Qdrant vector database.
 
 ## 🎯 Features
 
-- **Face Detection & Cropping**: Uses RetinaFace for accurate face detection and cropping
-- **Face Encoding**: Supports SigLIP (same as rag_to_riches), FaceNet, and ArcFace models for generating face embeddings
+- **Face Detection & Cropping**: Uses MediaPipe for accurate face detection and cropping
+- **Face Encoding**: Supports CLIP, FaceNet, and ArcFace models for generating face embeddings
 - **Vector Database**: Uses Qdrant for efficient storage and retrieval of face embeddings
 - **Text-Based Search**: Search for faces using text queries (filename, source image, etc.)
-- **Semantic Text Search**: Advanced text search using sentence transformers (same as rag_to_riches)
-- **Face Descriptions**: Add and search text descriptions of faces
+- **Semantic Text Search**: Multimodal text-to-image search using CLIP encoder
 - **Image-Based Search**: Find similar faces using image queries
 - **CLI Interface**: Easy-to-use command-line interface for all operations
 - **Configurable**: All models and paths configurable via `config.yaml`
 - **Complete Pipeline**: End-to-end processing from dataset to searchable database
+- **GPU Acceleration**: Automatic GPU detection and usage for faster processing
 
 ## 🏗️ Architecture
 
@@ -48,9 +48,10 @@ pip install -e .
 
 Edit `config.yaml` to specify:
 - Input dataset path (`dataset/img_align_celeba`)
-- Model to use (FaceNet or ArcFace)
+- Model to use (CLIP, FaceNet, or ArcFace)
 - Vector database location
 - Processing parameters
+- Device (auto-detects GPU if available)
 
 ### 3. Usage
 
@@ -64,7 +65,8 @@ python -m poi.cli pipeline
 python -m poi.cli preprocess
 
 # Encode and store faces
-python -m poi.cli encode
+python -m poi.cli encode --limit 100  # Encode 100 images
+python -m poi.cli encode              # Encode all images
 
 # Search for similar faces using image
 python -m poi.cli search-image path/to/query_face.jpg
@@ -74,14 +76,9 @@ python -m poi.cli search-text "000001" --search-type filename
 python -m poi.cli search-text "000001" --search-type source_image
 python -m poi.cli search-text "" --search-type all
 
-# Semantic text search (same as rag_to_riches)
+# Semantic text search (multimodal CLIP-based)
+python -m poi.cli search-semantic "a happy man"
 python -m poi.cli search-semantic "person with glasses"
-
-# Add text description to a face
-python -m poi.cli add-description "face_id_123" "person with glasses and beard"
-
-# Search through face descriptions
-python -m poi.cli search-descriptions "glasses"
 
 # Get database statistics
 python -m poi.cli stats
@@ -109,14 +106,9 @@ results = app.search_by_text("000001", "filename", limit=10)
 results = app.search_by_text("000001", "source_image", limit=10)
 results = app.search_by_text("", "all", limit=100)
 
-# Semantic text search (same as rag_to_riches)
+# Semantic text search (multimodal CLIP-based)
+results = app.search_by_semantic_text("a happy man", limit=10)
 results = app.search_by_semantic_text("person with glasses", limit=10)
-
-# Add text description to a face
-text_id = app.add_face_description("face_id_123", "person with glasses and beard")
-
-# Search through face descriptions
-results = app.search_face_descriptions("glasses", limit=10)
 
 # Get database statistics
 db_stats = app.get_database_stats()
@@ -141,32 +133,24 @@ dataset:
 
 # Face Detection Configuration
 face_detection:
-  model: "retinaface"
+  model: "mediapipe"
   confidence_threshold: 0.8
 
-# Image Encoding Configuration (using rag_to_riches models)
+# Image Encoding Configuration (using CLIP model)
 image_encoding:
-  model: "siglip"  # Options: siglip, facenet, arcface
-  model_name: "ViT-B-16-SigLIP2"  # Same as rag_to_riches
-  embedding_dim: 768  # SigLIP vector size
-
-# Text Encoding Configuration (using rag_to_riches models)
-text_encoding:
-  model: "sentence-transformers"
-  model_name: "all-MiniLM-L6-v2"  # Same as rag_to_riches
-  embedding_dim: 384
+  model: "clip"  # Options: clip, siglip, facenet, arcface
+  model_name: "ViT-B-32"  # CLIP model
+  pretrained: "openai"
+  embedding_dim: 512  # CLIP vector size
+  device: "auto"  # auto, cpu, cuda
 
 # Vector Database Configuration
 vector_db:
   type: "qdrant"
-  path: "data/vector_db"
+  path: "data/clip_face_embeddings"
   face_embeddings:
     collection_name: "face_embeddings"
-    vector_size: 768  # SigLIP vector size
-    distance: "cosine"
-  text_embeddings:
-    collection_name: "text_embeddings"
-    vector_size: 384  # Sentence transformers vector size
+    vector_size: 512  # CLIP vector size
     distance: "cosine"
 ```
 
@@ -201,11 +185,14 @@ Similar Faces Found
 
 ## 🛠️ Development
 
-This project follows the patterns and architecture from the `rag_to_riches` reference implementation, using:
-- Qdrant for vector database operations
-- Rich for beautiful CLI output
-- icontract for design-by-contract programming
-- loguru for structured logging
+This project uses:
+- **CLIP (OpenAI)** for multimodal image and text encoding
+- **Qdrant** for vector database operations
+- **MediaPipe** for face detection
+- **Rich** for beautiful CLI output
+- **icontract** for design-by-contract programming
+- **loguru** for structured logging
+- **PyTorch** with automatic GPU acceleration
 
 ## 📝 License
 
