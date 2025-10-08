@@ -29,6 +29,9 @@ dependencies = [
     "icontract>=2.7.1",
     "rich>=13.7.0",
     "loguru>=0.7.0",
+    # Web UI
+    "streamlit>=1.49.0",
+    "plotly>=5.17.0",
 ]
 
 [build-system]
