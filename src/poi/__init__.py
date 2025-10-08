@@ -37,7 +37,6 @@ from .app import create_app, PersonOfInterestApp
 from .preprocessing.face_detector import create_face_detector, FaceDetector
 from .encoding.face_encoder import create_face_encoder, FaceEncoder, FaceNetEncoder, ArcFaceEncoder
 from .encoding.siglip_encoder import create_siglip_face_encoder, SigLIPFaceEncoder
-from .encoding.text_encoder import create_text_encoder, TextEncoder
 from .vector_db.face_vector_db import create_face_vector_db, FaceVectorDB
 from .search.face_search import create_face_search, FaceSearch
 from .search.text_search import create_text_search, TextSearch
@@ -61,8 +60,6 @@ __all__ = [
     "ArcFaceEncoder",
     "create_siglip_face_encoder",
     "SigLIPFaceEncoder",
-    "create_text_encoder",
-    "TextEncoder",
     "create_face_vector_db",
     "FaceVectorDB",
     "create_face_search",

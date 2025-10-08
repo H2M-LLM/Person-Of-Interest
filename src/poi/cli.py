@@ -62,15 +62,19 @@ def preprocess(input_path: Optional[str], output_path: Optional[str], verbose: b
 @cli.command()
 @click.option('--processed-path', '-p',
               help='Path to processed face images (default: from config)')
+@click.option('--limit', '-l', type=int,
+              help='Limit number of images to encode (optional, encodes all if not specified)')
 @click.option('--verbose', '-v', is_flag=True,
               help='Enable verbose output')
-def encode(processed_path: Optional[str], verbose: bool):
+def encode(processed_path: Optional[str], limit: Optional[int], verbose: bool):
     """Encode processed face images and store in vector database."""
     try:
         console.print("[bold blue]🧠 Starting Face Encoding and Storage...[/bold blue]")
+        if limit:
+            console.print(f"[dim]Limiting to {limit} images[/dim]")
         
         app = create_app()
-        stats = app.encode_and_store_faces(processed_path)
+        stats = app.encode_and_store_faces(processed_path, limit=limit)
         
         if verbose:
             console.print(f"[green]✅ Encoding completed successfully![/green]")
@@ -155,51 +159,6 @@ def search_semantic(query: str, limit: int, threshold: Optional[float], verbose:
 
 
 @cli.command()
-@click.argument('face_id', type=str)
-@click.argument('description', type=str)
-@click.option('--verbose', '-v', is_flag=True,
-              help='Enable verbose output')
-def add_description(face_id: str, description: str, verbose: bool):
-    """Add a text description to a face for enhanced search."""
-    try:
-        console.print(f"[bold blue]📝 Adding description to face {face_id}...[/bold blue]")
-        
-        app = create_app()
-        text_id = app.add_face_description(face_id, description)
-        
-        if verbose:
-            console.print(f"[green]✅ Description added! Text ID: {text_id}[/green]")
-        
-    except Exception as e:
-        console.print(f"[red]❌ Error adding description: {str(e)}[/red]")
-        sys.exit(1)
-
-
-@cli.command()
-@click.argument('query', type=str)
-@click.option('--limit', '-l', default=10,
-              help='Maximum number of results to return (default: 10)')
-@click.option('--threshold', '-t', type=float,
-              help='Minimum similarity score threshold')
-@click.option('--verbose', '-v', is_flag=True,
-              help='Enable verbose output')
-def search_descriptions(query: str, limit: int, threshold: Optional[float], verbose: bool):
-    """Search through text descriptions of faces."""
-    try:
-        console.print(f"[bold blue]🔍 Searching face descriptions for: '{query}'...[/bold blue]")
-        
-        app = create_app()
-        results = app.search_face_descriptions(query, limit, threshold)
-        
-        if verbose:
-            console.print(f"[green]✅ Description search completed! Found {len(results)} descriptions[/green]")
-        
-    except Exception as e:
-        console.print(f"[red]❌ Error during description search: {str(e)}[/red]")
-        sys.exit(1)
-
-
-@cli.command()
 @click.option('--input-path', '-i',
               help='Path to input images directory (default: from config)')
 @click.option('--verbose', '-v', is_flag=True,
@@ -239,12 +198,34 @@ def stats():
 def info():
     """Display application information and configuration."""
     try:
+        import torch
+        
         # Application info
         app_info = config["app"]
         dataset_info = config["dataset"]
         face_detection_info = config["face_detection"]
         image_encoding_info = config["image_encoding"]
         vector_db_info = config["vector_db"]
+        
+        # GPU/CUDA info
+        cuda_available = torch.cuda.is_available()
+        if cuda_available:
+            cuda_device_count = torch.cuda.device_count()
+            cuda_device_name = torch.cuda.get_device_name(0)
+            cuda_version = torch.version.cuda
+            gpu_info = f"""
+[bold]GPU/CUDA Information[/bold]
+CUDA Available: ✅ Yes
+CUDA Version: {cuda_version}
+GPU Device Count: {cuda_device_count}
+GPU Name: {cuda_device_name}
+Current Device: cuda:0
+PyTorch Version: {torch.__version__}"""
+        else:
+            gpu_info = f"""
+[bold]GPU/CUDA Information[/bold]
+CUDA Available: ❌ No (using CPU)
+PyTorch Version: {torch.__version__}"""
         
         info_text = f"""
 [bold]Application Information[/bold]
@@ -266,6 +247,7 @@ Max Face Size: {face_detection_info['max_face_size']}
 
 [bold]Image Encoding Configuration[/bold]
 Model: {image_encoding_info['model']}
+Model Name: {image_encoding_info.get('model_name', 'N/A')}
 Input Size: {image_encoding_info['input_size']}
 Embedding Dimension: {image_encoding_info['embedding_dim']}
 Device: {image_encoding_info['device']}
@@ -276,6 +258,7 @@ Path: {vector_db_info['path']}
 Collection: {vector_db_info['face_embeddings']['collection_name']}
 Vector Size: {vector_db_info['face_embeddings']['vector_size']}
 Distance Metric: {vector_db_info['face_embeddings']['distance']}
+{gpu_info}
         """.strip()
         
         panel = Panel(info_text, title="Person of Interest Application Info", border_style="blue")

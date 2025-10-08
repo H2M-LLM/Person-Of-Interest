@@ -363,5 +363,9 @@ def create_face_encoder(model_name: Optional[str] = None) -> FaceEncoder:
         # Import SigLIP encoder
         from .siglip_encoder import create_siglip_face_encoder
         return create_siglip_face_encoder()
+    elif model_name.lower() == "clip":
+        # Import CLIP encoder
+        from .clip_encoder import create_clip_face_encoder
+        return create_clip_face_encoder()
     else:
         raise ValueError(f"Unsupported face encoder model: {model_name}")

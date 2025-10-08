@@ -43,11 +43,10 @@ class EnhancedTextSearch:
         self.vector_db = vector_db
         self.face_encoder = None
         
-        # Collection names from config
+        # Collection name from config
         self.face_collection = config["vector_db"]["face_embeddings"]["collection_name"]
-        self.text_collection = config["vector_db"]["text_embeddings"]["collection_name"]
         
-        logger.info("Initialized EnhancedTextSearch with sentence transformers")
+        logger.info("Initialized EnhancedTextSearch with SigLIP multimodal model")
 
     # ----------------------------------------------------------------------------------------
     #  Initialize Text Encoder
@@ -81,6 +80,17 @@ class EnhancedTextSearch:
             query_embedding = self.face_encoder.encode_text(query)
             query_vector = query_embedding.tolist()
             
+            # Print the number of points in the face collection before searching
+            try:
+                # Use get_collection_info if get_collection_stats is not available
+                if hasattr(self.vector_db, "get_collection_info"):
+                    info = self.vector_db.get_collection_info(self.face_collection)
+                    num_points = info.get("point_count", "unknown")
+                    print(f"[EnhancedTextSearch] Number of points in '{self.face_collection}': {num_points}")
+                else:
+                    print(f"[EnhancedTextSearch] Could not retrieve collection stats: 'FaceVectorDB' object has no attribute 'get_collection_stats'")
+            except Exception as e:
+                print(f"[EnhancedTextSearch] Could not retrieve collection stats: {e}")
             # Search directly in face_embeddings collection using multimodal SigLIP!
             results = self.vector_db.search_points(
                 collection_name=self.face_collection,
@@ -212,104 +222,6 @@ class EnhancedTextSearch:
         except Exception as e:
             logger.error(f"Error getting all faces: {str(e)}")
             raise ValueError(f"Failed to get all faces: {str(e)}")
-
-    # ----------------------------------------------------------------------------------------
-    #  Add Text Description to Face
-    # ----------------------------------------------------------------------------------------
-    @require(lambda face_id: isinstance(face_id, str) and len(face_id.strip()) > 0,
-             "Face ID must be a non-empty string")
-    @require(lambda description: isinstance(description, str) and len(description.strip()) > 0,
-             "Description must be a non-empty string")
-    def add_text_description(self, face_id: str, description: str) -> str:
-        """Add a text description to a face and store it as a text embedding.
-        
-        Args:
-            face_id: ID of the face to add description to.
-            description: Text description of the face.
-            
-        Returns:
-            ID of the created text embedding.
-        """
-        try:
-            self._ensure_text_encoder()
-            
-            # Get face metadata
-            face_record = self.vector_db.get_point(self.face_collection, face_id)
-            if not face_record:
-                raise ValueError(f"Face with ID {face_id} not found")
-            
-            # Create text embedding
-            text_metadata = {
-                "face_id": face_id,
-                "description": description,
-                "face_filename": face_record.payload.get("filename", "unknown"),
-                "face_source_image": face_record.payload.get("source_image", "unknown")
-            }
-            
-            text_point = self.text_encoder.create_point(description, text_metadata)
-            
-            # Store in text collection
-            self.vector_db.upsert_points(self.text_collection, [text_point])
-            
-            logger.info(f"Added text description for face {face_id}: '{description}'")
-            return text_point.id
-            
-        except Exception as e:
-            logger.error(f"Error adding text description: {str(e)}")
-            raise ValueError(f"Failed to add text description: {str(e)}")
-
-    # ----------------------------------------------------------------------------------------
-    #  Search Text Descriptions
-    # ----------------------------------------------------------------------------------------
-    @require(lambda query: isinstance(query, str) and len(query.strip()) > 0,
-             "Query must be a non-empty string")
-    def search_text_descriptions(self, query: str, limit: int = 10,
-                               score_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
-        """Search through text descriptions of faces.
-        
-        Args:
-            query: Text query to search for.
-            limit: Maximum number of results to return.
-            score_threshold: Minimum similarity score threshold.
-            
-        Returns:
-            List of search results with metadata.
-        """
-        try:
-            self._ensure_text_encoder()
-            
-            # Create text embedding
-            query_embedding = self.text_encoder.encode_text(query)
-            query_vector = query_embedding.cpu().numpy().flatten().tolist()
-            
-            # Search in text collection
-            results = self.vector_db.search_points(
-                collection_name=self.text_collection,
-                query_vector=query_vector,
-                limit=limit,
-                score_threshold=score_threshold
-            )
-            
-            # Format results
-            formatted_results = []
-            for result in results:
-                formatted_result = {
-                    "id": result.id,
-                    "score": result.score,
-                    "metadata": result.payload,
-                    "description": result.payload.get("description", "unknown"),
-                    "face_id": result.payload.get("face_id", "unknown"),
-                    "face_filename": result.payload.get("face_filename", "unknown"),
-                    "search_type": "text_description"
-                }
-                formatted_results.append(formatted_result)
-            
-            logger.info(f"Text description search for '{query}' returned {len(formatted_results)} results")
-            return formatted_results
-            
-        except Exception as e:
-            logger.error(f"Error searching text descriptions: {str(e)}")
-            raise ValueError(f"Text description search failed: {str(e)}")
 
     # ----------------------------------------------------------------------------------------
     #  Helper Methods (Private)

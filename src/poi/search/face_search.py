@@ -305,3 +305,4 @@ def create_face_search(face_encoder: FaceEncoder, vector_db: FaceVectorDB,
         collection_name = config["vector_db"]["face_embeddings"]["collection_name"]
     
     return FaceSearch(face_encoder, vector_db, collection_name)
+

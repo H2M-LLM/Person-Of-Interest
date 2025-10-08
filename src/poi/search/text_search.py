@@ -226,3 +226,8 @@ def create_text_search(vector_db: FaceVectorDB,
         collection_name = config["vector_db"]["face_embeddings"]["collection_name"]
     
     return TextSearch(vector_db, collection_name)
+
+
+
+
+

@@ -157,11 +157,12 @@ class PersonOfInterestApp:
     # ----------------------------------------------------------------------------------------
     #  Encode and Store Faces
     # ----------------------------------------------------------------------------------------
-    def encode_and_store_faces(self, processed_path: Optional[str] = None) -> Dict[str, Any]:
+    def encode_and_store_faces(self, processed_path: Optional[str] = None, limit: Optional[int] = None) -> Dict[str, Any]:
         """Encode processed face images and store them in the vector database.
         
         Args:
             processed_path: Path to processed face images. If None, uses config.
+            limit: Optional limit on number of images to encode. If None, encodes all.
             
         Returns:
             Dictionary with encoding and storage statistics.
@@ -189,10 +190,15 @@ class PersonOfInterestApp:
             if not processed_path_obj.exists():
                 raise ValueError(f"Processed path does not exist: {processed_path}")
             
-            face_images = list(processed_path_obj.glob("*.jpg")) + list(processed_path_obj.glob("*.jpeg"))
+            face_images = sorted(list(processed_path_obj.glob("*.jpg")) + list(processed_path_obj.glob("*.jpeg")))
             
             if not face_images:
                 raise ValueError(f"No face images found in {processed_path}")
+            
+            # Apply limit if specified
+            if limit is not None and limit > 0:
+                face_images = face_images[:limit]
+                self.console.print(f"[dim]Limiting to first {limit} images[/dim]")
             
             self.console.print(f"Found {len(face_images)} face images to encode")
             
@@ -338,7 +344,7 @@ class PersonOfInterestApp:
             List of search results with metadata.
         """
         try:
-            self.console.print(f"[bold blue]Searching for faces with query: '{query}'...[/bold blue]")
+            self.console.print(f"[bold blue]Search_by_text for faces with query: '{query}'...[/bold blue]")
             
             # Ensure components are initialized
             if self.text_search is None:
@@ -382,6 +388,7 @@ class PersonOfInterestApp:
         Returns:
             List of search results with metadata.
         """
+        self.console.print(f"[bold blue]Search_by_semantic_text for: '{query}'...[/bold blue]")
         try:
             self.console.print(f"[bold blue]Semantic text search for: '{query}'...[/bold blue]")
             
@@ -389,9 +396,12 @@ class PersonOfInterestApp:
             if self.enhanced_text_search is None:
                 if self.vector_db is None:
                     self.vector_db = create_face_vector_db()
+                else:
+                    self.console.print(f"Vector DB already initialized")
                 self.enhanced_text_search = create_enhanced_text_search(self.vector_db)
             
             # Perform semantic search
+            self.console.print(f"Inside try block '{self.enhanced_text_search}'...")    
             results = self.enhanced_text_search.search_by_text_query(
                 query, limit, score_threshold
             )
@@ -402,84 +412,9 @@ class PersonOfInterestApp:
             return results
             
         except Exception as e:
+            self.console.print(f"Error in semantic text search: {str(e)}")
             logger.error(f"Error in semantic text search: {str(e)}")
             raise ValueError(f"Semantic text search failed: {str(e)}")
-
-    # ----------------------------------------------------------------------------------------
-    #  Add Text Description to Face
-    # ----------------------------------------------------------------------------------------
-    @require(lambda face_id: isinstance(face_id, str) and len(face_id.strip()) > 0,
-             "Face ID must be a non-empty string")
-    @require(lambda description: isinstance(description, str) and len(description.strip()) > 0,
-             "Description must be a non-empty string")
-    def add_face_description(self, face_id: str, description: str) -> str:
-        """Add a text description to a face for enhanced search.
-        
-        Args:
-            face_id: ID of the face to add description to.
-            description: Text description of the face.
-            
-        Returns:
-            ID of the created text embedding.
-        """
-        try:
-            self.console.print(f"[bold blue]Adding description to face {face_id}...[/bold blue]")
-            
-            # Ensure components are initialized
-            if self.enhanced_text_search is None:
-                if self.vector_db is None:
-                    self.vector_db = create_face_vector_db()
-                self.enhanced_text_search = create_enhanced_text_search(self.vector_db)
-            
-            # Add description
-            text_id = self.enhanced_text_search.add_text_description(face_id, description)
-            
-            self.console.print(f"[green]✅ Added description: '{description}'[/green]")
-            return text_id
-            
-        except Exception as e:
-            logger.error(f"Error adding face description: {str(e)}")
-            raise ValueError(f"Failed to add face description: {str(e)}")
-
-    # ----------------------------------------------------------------------------------------
-    #  Search Text Descriptions
-    # ----------------------------------------------------------------------------------------
-    @require(lambda query: isinstance(query, str) and len(query.strip()) > 0,
-             "Query must be a non-empty string")
-    def search_face_descriptions(self, query: str, limit: int = 10,
-                               score_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
-        """Search through text descriptions of faces.
-        
-        Args:
-            query: Text query to search for.
-            limit: Maximum number of results to return.
-            score_threshold: Minimum similarity score threshold.
-            
-        Returns:
-            List of search results with metadata.
-        """
-        try:
-            self.console.print(f"[bold blue]Searching face descriptions for: '{query}'...[/bold blue]")
-            
-            # Ensure components are initialized
-            if self.enhanced_text_search is None:
-                if self.vector_db is None:
-                    self.vector_db = create_face_vector_db()
-                self.enhanced_text_search = create_enhanced_text_search(self.vector_db)
-            
-            # Search descriptions
-            results = self.enhanced_text_search.search_text_descriptions(
-                query, limit, score_threshold
-            )
-            
-            # Display results
-            self._display_description_search_results(results, query)
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"Error searching face descriptions: {str(e)}")
-            raise ValueError(f"Face description search failed: {str(e)}")
 
     # ----------------------------------------------------------------------------------------
     #  Get Database Statistics
@@ -644,34 +579,6 @@ class PersonOfInterestApp:
                 result["id"][:8] + "...",  # Truncate ID for display
                 result["filename"],
                 result["source_image"]
-            )
-        
-        self.console.print(table)
-    
-    def _display_description_search_results(self, results: List[Dict[str, Any]], query: str) -> None:
-        """Display description search results in a formatted table."""
-        if not results:
-            self.console.print(f"[yellow]No face descriptions found for query '{query}'.[/yellow]")
-            return
-        
-        table = Table(title=f"Face Description Search Results: '{query}'")
-        table.add_column("Rank", style="cyan")
-        table.add_column("Score", style="green")
-        table.add_column("Description", style="blue")
-        table.add_column("Face ID", style="magenta")
-        table.add_column("Face Filename", style="yellow")
-        
-        for i, result in enumerate(results, 1):
-            description = result["description"]
-            if len(description) > 50:
-                description = description[:47] + "..."
-            
-            table.add_row(
-                str(i),
-                f"{result['score']:.4f}",
-                description,
-                result["face_id"][:8] + "...",  # Truncate ID for display
-                result["face_filename"]
             )
         
         self.console.print(table)

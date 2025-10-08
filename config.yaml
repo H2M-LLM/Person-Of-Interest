@@ -32,34 +32,23 @@ face_detection:
   min_face_size: 1000
   max_face_size: 50000
 
-# Image Encoding Configuration (using rag_to_riches models)
+# Image Encoding Configuration (using CLIP model)
 image_encoding:
-  model: "siglip"  # Options: siglip, facenet, arcface
-  model_name: "ViT-B-16-SigLIP2"  # SigLIP model from rag_to_riches
-  pretrained: "webli"  # Pretrained weights
-  input_size: [224, 224]  # [height, width] - SigLIP standard size
-  embedding_dim: 768  # SigLIP vector size
+  model: "clip"  # Options: clip, siglip, facenet, arcface
+  model_name: "ViT-B-32"  # CLIP model
+  pretrained: "openai"  # Pretrained weights
+  input_size: [224, 224]  # [height, width] - CLIP standard size
+  embedding_dim: 512  # CLIP vector size
   batch_size: 16
   device: "auto"  # auto, cpu, cuda
-
-# Text Encoding Configuration (using rag_to_riches models)
-text_encoding:
-  model: "sentence-transformers"  # Text embedder from rag_to_riches
-  model_name: "all-MiniLM-L6-v2"  # Same as rag_to_riches
-  embedding_dim: 384  # Sentence transformers vector size
-  batch_size: 32
 
 # Vector Database Configuration (using Qdrant like rag_to_riches)
 vector_db:
   type: "qdrant"
-  path: "/home/biju/supportvectors/Person-Of-Interest/data/vector_db"
+  path: "/home/biju/supportvectors/Person-Of-Interest/data/clip_face_embeddings"
   face_embeddings:
     collection_name: "face_embeddings"
-    vector_size: 768  # SigLIP vector size
-    distance: "cosine"
-  text_embeddings:
-    collection_name: "text_embeddings"
-    vector_size: 384  # Sentence transformers vector size
+    vector_size: 512  # CLIP vector size
     distance: "cosine"
 
 # Search Configuration
