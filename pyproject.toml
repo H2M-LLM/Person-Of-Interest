@@ -9,7 +9,7 @@ dependencies = [
     # Face detection and processing (using MediaPipe - more compatible)
     "mediapipe>=0.10.0",
     "opencv-python>=4.6.0,<4.7.0",
-    "Pillow>=10.0.0",
+    "pillow>=10.0.0",
     # Deep learning and image encoding
     "torch>=2.0.0",
     "torchvision>=0.15.0",
@@ -29,6 +29,8 @@ dependencies = [
     "icontract>=2.7.1",
     "rich>=13.7.0",
     "loguru>=0.7.0",
+    "streamlit>=1.50.0",
+    "plotly>=6.3.1",
 ]
 
 [build-system]
