@@ -1,0 +1,65 @@
+#-------------------------------------------------------------------------------------------
+#  Copyright (c) 2016-2025.  SupportVectors AI Lab
+#
+#  This code is part of the training material, and therefore part of the intellectual property.
+#  It may not be reused or shared without the explicit, written permission of SupportVectors.
+#
+#  Use is limited to the duration and purpose of the training at SupportVectors.
+#
+#  Author: SupportVectors AI Training
+#-------------------------------------------------------------------------------------------
+
+cohort: Spring 2025
+
+# Person of Interest Application Configuration
+app:
+  name: "person-of-interest"
+  version: "0.1.0"
+  description: "Face image processing and semantic search application"
+
+# Dataset Configuration
+dataset:
+  #input_path: "/home/biju/supportvectors/Person-Of-Interest/dataset/img_align_celeba"
+  input_path: "/home/biju/celeba-dataset/img_align_celeba"
+  processed_path: "/home/biju/supportvectors/Person-Of-Interest/dataset/processed_faces"
+  supported_formats: ["jpg", "jpeg", "png"]
+  batch_size: 32
+
+# Face Detection Configuration
+face_detection:
+  model: "mediapipe"  # Using MediaPipe instead of RetinaFace for better Python 3.12+ compatibility
+  confidence_threshold: 0.8
+  min_face_size: 1000
+  max_face_size: 50000
+
+# Image Encoding Configuration (using CLIP model)
+image_encoding:
+  model: "clip"  # Options: clip, siglip, facenet, arcface
+  model_name: "ViT-B-32"  # CLIP model
+  pretrained: "openai"  # Pretrained weights
+  input_size: [224, 224]  # [height, width] - CLIP standard size
+  embedding_dim: 512  # CLIP vector size
+  batch_size: 16
+  device: "auto"  # auto, cpu, cuda
+
+# Vector Database Configuration (using Qdrant like rag_to_riches)
+vector_db:
+  type: "qdrant"
+  path: "/home/biju/supportvectors/Person-Of-Interest/data/clip_face_embeddings"
+  face_embeddings:
+    collection_name: "face_embeddings"
+    vector_size: 512  # CLIP vector size
+    distance: "cosine"
+
+# Search Configuration
+search:
+  similarity_threshold: 0.6
+  max_results: 20
+  include_metadata: true
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/poi.log"
+
