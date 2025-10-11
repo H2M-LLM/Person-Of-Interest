@@ -24,6 +24,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from io import BytesIO
 import base64
+import yaml
 
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -199,6 +200,100 @@ def display_database_stats():
     except Exception as e:
         st.error(f"Error getting database statistics: {str(e)}")
 
+def display_cli_info():
+    """Display CLI information similar to 'python -m poi.cli info' command."""
+    try:
+        import torch
+        import yaml
+        
+        # Load config
+        config_path = Path(__file__).parent / "config.yaml"
+        with open(config_path, 'r') as f:
+            config_data = yaml.safe_load(f)
+        
+        app_info = config_data["app"]
+        dataset_info = config_data["dataset"]
+        face_detection_info = config_data["face_detection"]
+        image_encoding_info = config_data["image_encoding"]
+        vector_db_info = config_data["vector_db"]
+        
+        # GPU/CUDA info
+        cuda_available = torch.cuda.is_available()
+        if cuda_available:
+            cuda_device_count = torch.cuda.device_count()
+            cuda_device_name = torch.cuda.get_device_name(0)
+            cuda_version = torch.version.cuda
+            gpu_status = "✅ Yes"
+            gpu_details = f"""
+**CUDA Version:** {cuda_version}  
+**GPU Device Count:** {cuda_device_count}  
+**GPU Name:** {cuda_device_name}  
+**Current Device:** cuda:0"""
+        else:
+            gpu_status = "❌ No (using CPU)"
+            gpu_details = ""
+        
+        # Display information in sections
+        st.subheader("📱 Application Information")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Name:** {app_info['name']}")
+            st.write(f"**Version:** {app_info['version']}")
+        with col2:
+            st.write(f"**Description:** {app_info['description']}")
+        
+        st.subheader("📁 Dataset Configuration")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Input Path:** `{dataset_info['input_path']}`")
+            st.write(f"**Processed Path:** `{dataset_info['processed_path']}`")
+        with col2:
+            st.write(f"**Supported Formats:** {', '.join(dataset_info['supported_formats'])}")
+            st.write(f"**Batch Size:** {dataset_info['batch_size']}")
+        
+        st.subheader("🔍 Face Detection Configuration")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Model:** {face_detection_info['model']}")
+            st.write(f"**Confidence Threshold:** {face_detection_info['confidence_threshold']}")
+        with col2:
+            st.write(f"**Min Face Size:** {face_detection_info['min_face_size']}")
+            st.write(f"**Max Face Size:** {face_detection_info['max_face_size']}")
+        
+        st.subheader("🧠 Image Encoding Configuration")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Model:** {image_encoding_info['model']}")
+            st.write(f"**Model Name:** {image_encoding_info.get('model_name', 'N/A')}")
+            st.write(f"**Input Size:** {image_encoding_info['input_size']}")
+        with col2:
+            st.write(f"**Embedding Dimension:** {image_encoding_info['embedding_dim']}")
+            st.write(f"**Device:** {image_encoding_info['device']}")
+            st.write(f"**Batch Size:** {image_encoding_info['batch_size']}")
+        
+        st.subheader("🗄️ Vector Database Configuration")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Type:** {vector_db_info['type']}")
+            st.write(f"**Path:** `{vector_db_info['path']}`")
+        with col2:
+            st.write(f"**Collection:** {vector_db_info['face_embeddings']['collection_name']}")
+            st.write(f"**Vector Size:** {vector_db_info['face_embeddings']['vector_size']}")
+            st.write(f"**Distance Metric:** {vector_db_info['face_embeddings']['distance']}")
+        
+        st.subheader("🖥️ GPU/CUDA Information")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**CUDA Available:** {gpu_status}")
+        with col2:
+            st.write(f"**PyTorch Version:** {torch.__version__}")
+        
+        if gpu_details:
+            st.write(gpu_details)
+        
+    except Exception as e:
+        st.error(f"Error displaying CLI info: {str(e)}")
+
 def main():
     """Main Streamlit application."""
     
@@ -246,10 +341,10 @@ def main():
     # Create tabs for different functionalities
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "🔍 Face Search", 
-        "📝 Text Search", 
         "🌐 Semantic Search", 
         "📁 Browse Dataset", 
-        "📊 Analytics"
+        "📊 Analytics",
+        "ℹ️ CLI Info"
     ])
     
     with tab1:
@@ -306,65 +401,6 @@ def main():
                     st.error(f"Search failed: {str(e)}")
     
     with tab2:
-        st.header("📝 Text-Based Metadata Search")
-        st.markdown("Search for faces using filename or source image metadata.")
-        
-        # Search type selection
-        search_type = st.selectbox(
-            "Search Type",
-            ["filename", "source_image", "all"],
-            help="Choose how to search the database"
-        )
-        
-        # Query input
-        if search_type == "all":
-            query = ""
-            st.info("Searching all faces in the database...")
-        else:
-            query = st.text_input(
-                f"Enter {search_type} to search for:",
-                placeholder=f"e.g., 000001 for {search_type}",
-                help=f"Enter a {search_type} to search for"
-            )
-        
-        # Search parameters
-        col1, col2 = st.columns(2)
-        with col1:
-            limit = st.slider("Number of results", 1, 100, 20)
-        
-        # Search button
-        if st.button("🔍 Search by Text", type="primary"):
-            if search_type != "all" and not query.strip():
-                st.warning("Please enter a search query.")
-            else:
-                try:
-                    with st.spinner("Searching..."):
-                        results = st.session_state.app.search_by_text(
-                            query, 
-                            search_type=search_type, 
-                            limit=limit
-                        )
-                    
-                    if results:
-                        # Load images for display
-                        display_data = []
-                        for result in results:
-                            img_path = result['metadata'].get('filepath')
-                            if img_path and os.path.exists(img_path):
-                                img = Image.open(img_path)
-                                display_data.append({
-                                    'image': img,
-                                    'metadata': result['metadata']
-                                })
-                        
-                        display_face_grid(display_data, f"Text Search Results ({search_type})")
-                    else:
-                        st.warning("No results found.")
-                        
-                except Exception as e:
-                    st.error(f"Search failed: {str(e)}")
-    
-    with tab3:
         st.header("🌐 Semantic Text Search")
         st.markdown("Search for faces using natural language descriptions.")
         
@@ -415,7 +451,7 @@ def main():
                 except Exception as e:
                     st.error(f"Semantic search failed: {str(e)}")
     
-    with tab4:
+    with tab3:
         st.header("📁 Dataset Browser")
         st.markdown("Browse and explore the processed faces dataset.")
         
@@ -466,7 +502,7 @@ def main():
                 except Exception as e:
                     st.error(f"Error loading {img_path.name}: {str(e)}")
     
-    with tab5:
+    with tab4:
         st.header("📊 Analytics & Statistics")
         
         if st.session_state.app is None:
@@ -525,6 +561,13 @@ def main():
                 
         except Exception as e:
             st.error(f"Error analyzing dataset: {str(e)}")
+    
+    with tab5:
+        st.header("ℹ️ CLI Information")
+        st.markdown("Application configuration and system information (equivalent to `python -m poi.cli info`).")
+        
+        # Display CLI info
+        display_cli_info()
 
 if __name__ == "__main__":
     main()
